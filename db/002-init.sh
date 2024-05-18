@@ -2,7 +2,7 @@ echo "Starting 002-init.sh"
 
 sed -i '$d' /var/lib/postgresql/data/pg_hba.conf
 echo "host replication ${DB_REPL_USER} ${DB_REPL_HOST}/32 scram-sha-256" >> /var/lib/postgresql/data/pg_hba.conf
-echo "host ${DB_DATABASE} tg_bot ${BOT_HOST}/32 password" >> /var/lib/postgresql/data/pg_hba.conf
+echo "host ${DB_DATABASE} ${DB_USER} ${BOT_HOST}/32 password" >> /var/lib/postgresql/data/pg_hba.conf
 
 echo "pg_hba.conf is changed"
 
