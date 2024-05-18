@@ -30,7 +30,7 @@ logging.info("Скопированны переменные окружения")
 logging.info("Считывание help сообщения")
 help_message = "Хм, похоже, что help сообщеение где-то потерялось 🤔🤔🤔" # заполнение на случай, если не удасться считать из файла 
 try:
-    with open("help_message.txt", "r") as fp:
+    with open("/app/help_message.txt", "r") as fp:
         help_message = fp.read()
 except Exception as e:
     logging.critical("Ошибка при считывании help сообщения: " + repr(e))
@@ -94,7 +94,7 @@ def verify_password(update: Update, context):
     logging.info("Вызван verify_password")
     user_input = update.message.text
     logging.debug(user_input)
-    password_regexp = re.compile(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
+    password_regexp = re.compile(r'(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z!@#$%^&*]{8,}')
     password_test = password_regexp.search(user_input)
     logging.debug(password_test)
     if not password_test:
@@ -213,7 +213,7 @@ def main():
     logging.debug("Импорт комманд ssh из json")
     ssh_commands = {}
     try:
-        with open("ssh_commands.json", "r") as fp:
+        with open("/app/ssh_commands.json", "r") as fp:
             ssh_commands = json.load(fp)
     except Exception as e:
         logging.critical("Ошибка при считывании ssh_commands.json" + repr(e))
@@ -228,7 +228,7 @@ def main():
     logging.debug("Импорт комманд regexp из json")
     regexp_commands = {}
     try:
-        with open("regexp_commands.json", "r") as fp:
+        with open("/app/regexp_commands.json", "r") as fp:
             regexp_commands = json.load(fp)
     except Exception as e:
         logging.critical("Ошибка при считывании regexp_commands.json" + repr(e))
@@ -258,7 +258,7 @@ def main():
     logging.debug("Импорт комманд select из json")
     select_commands = {}
     try:
-        with open("select_commands.json", "r") as fp:
+        with open("/app/select_commands.json", "r") as fp:
             select_commands = json.load(fp)
     except Exception as e:
         logging.critical("Ошибка при считывании select_commands.json" + repr(e))
