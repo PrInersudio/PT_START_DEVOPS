@@ -11,8 +11,8 @@ psql -U ${POSTGRES_USER} -d ${DB_DATABASE} \
 -c "create user ${DB_USER} with password '${DB_PASSWORD}';" \
 -c "GRANT SELECT, INSERT ON TABLE emails TO ${DB_USER};" \
 -c "GRANT SELECT, INSERT ON TABLE phone_numbers TO ${DB_USER};" \
--c "GRANT USAGE ON SEQUENCE emails_id_seq TO tg_bot;" \
--c "GRANT USAGE ON SEQUENCE phone_numbers_id_seq TO tg_bot;"
+-c "GRANT USAGE ON SEQUENCE emails_id_seq TO ${DB_USER};" \
+-c "GRANT USAGE ON SEQUENCE phone_numbers_id_seq TO ${DB_USER};"
 
 
 echo "Finished 002-init.sh sucessfully"
