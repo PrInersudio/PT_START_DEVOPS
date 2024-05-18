@@ -280,8 +280,6 @@ def main():
     logging.info("Бот запущен")
     updater.idle()
     logging.info("Работа завершена")
-    for file in Path("db_logs").iterdir():
-        os.unlink(file)
 
     
 if __name__ == "__main__":
