@@ -12,7 +12,7 @@ from psycopg2 import Error
 from pathlib import Path
 import subprocess
 
-logging.basicConfig(filename='logfile.txt', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='/app/logfile.txt', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 logging.info("Логгирование начато. Текущий уровень логгирования: " + logging._levelToName[logging.root.level])
 
 TOKEN = os.getenv('TOKEN')
