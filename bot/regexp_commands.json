@@ -1,0 +1,18 @@
+{
+    "find_email": {
+        "reply_text": "Введите текст, в котором нужно найти адреса email:",
+        "next_step": "find_email",
+        "regexp": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}",
+        "not_found_message": "В данном тексте адреса email не найдены",
+        "table_name": "emails",
+        "column_name": "email"
+    },
+    "find_phone_number": {
+        "reply_text": "Введите текст, в котором нужно найти номера телефонов:",
+        "next_step": "find_phone_number",
+        "regexp": "(\\+7|8)[\\s(-]*(\\d{3})[\\s)-]*(\\d{3})[\\s-]*(\\d{2})[\\s-]*(\\d{2})",
+        "not_found_message": "В данном тексте номера телефонов не найдены",
+        "table_name": "phone_numbers",
+        "column_name": "number"
+    }
+}

@@ -1,0 +1,81 @@
+version: '3.8'
+
+
+services:
+
+  bot:
+    image: bot_image
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    networks:
+      bot_network:
+        ipv4_address: 10.11.11.2
+    depends_on:
+      - db
+    volumes:
+      - dblogs:/app/db_logs
+    environment:
+      TOKEN: ${TOKEN}
+      RM_HOST: ${RM_HOST}
+      RM_PORT: ${RM_PORT}
+      RM_USER: ${RM_USER}
+      RM_PASSWORD: ${RM_PASSWORD}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+
+
+
+  db:
+    image: db_image
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    networks:
+      bot_network:
+        ipv4_address: 10.11.11.3
+    volumes:
+      - dblogs:/db/db_logs
+    environment:
+      BOT_HOST: ${BOT_HOST}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_REPL_HOST: ${DB_REPL_HOST}
+      DB_REPL_USER: ${DB_REPL_USER}
+      DB_REPL_PASSWORD: ${DB_REPL_PASSWORD}
+  
+  db_repl:
+    image: db_repl_image
+    build:
+      context: ./db_repl
+      dockerfile: Dockerfile
+    networks:
+      bot_network:
+        ipv4_address: 10.11.11.4
+    depends_on:
+      - db
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_REPL_PORT: ${DB_REPL_PORT}
+      PGUSER: ${DB_REPL_USER}
+      PGPASSWORD: ${DB_REPL_PASSWORD}
+
+
+networks:
+
+  bot_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.11.11.0/29  # Задаем подсеть для сети
+
+
+volumes:
+  dblogs:

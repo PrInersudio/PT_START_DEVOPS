@@ -1,0 +1,15 @@
+{
+    "get_release": "cat /etc/os-release",
+    "get_uname": "uname -pnv",
+    "get_uptime": "uptime",
+    "get_df": "df",
+    "get_free": "free",
+    "get_mpstat": "mpstat",
+    "get_w": "w",
+    "get_auths": "last -n 10",
+    "get_critical": "journalctl -p crit -n 5",
+    "get_ps": "ps",
+    "get_ss": "ss -lntup",
+    "get_apt_list": "dpkg-query -l",
+    "get_services": "systemctl list-unit-files --type service"
+}
