@@ -1,0 +1,239 @@
+- name: db_deployment
+  vars_files:
+    - secrets.yml
+  hosts: db
+  become: yes
+
+  tasks:
+
+  # Защита от повторного проишрыша
+  - name: Check if the /app exists
+    stat:
+      path: /app
+    register: dir_stat
+
+  - name: Skip playbook if the directory exists
+    meta: end_play
+    when: dir_stat.stat.exists
+
+  - name: Install soft
+    apt:
+      name:
+        - python3
+        - python3-pip
+        - python3-venv
+        - python-is-python3
+        - postgresql
+        - postgresql-contrib
+      state: latest
+      update_cache: yes
+
+  - name: Install bot dependencies
+    pip:
+      name:
+        - paramiko
+        - python-telegram.bot==13.7
+        - psycopg2-binary
+        - urllib3==1.26.15
+      extra_args: --break-system-packages
+
+  - name: Get postgresql.conf path
+    postgresql_query:
+      db: postgres
+      query: SHOW config_file;
+    become: true
+    become_user: postgres
+    register: config_file_path
+
+#max_wal_senders=10
+#wal_level=replica
+#wal_log_hints=on
+#hot_standby=on
+#max_replication_slots=10
+#hot_standby_feedback=on
+#log_replication_commands=on
+#logging_collector=on
+#log_directory=/app/db_logs
+#port = ${DB_PORT}
+#listen_addresses = 'localhost, ${DB_REPL_HOST}'
+
+  - name: Set postgres configuration in postgresql.conf
+    lineinfile:
+      path: "{{ config_file_path.query_result[0].config_file }}"
+      regexp: '^[#\s]*{{ item.param_name }}\s*='
+      line: "{{ item.param_name }} = {{ item.param_value }}"
+      state: present
+    with_items:
+      - {param_name: max_wal_senders, param_value: 10}
+      - {param_name: wal_level, param_value: replica}
+      - {param_name: wal_log_hints, param_value: on}
+      - {param_name: hot_standby, param_value: on}
+      - {param_name: max_replication_slots, param_value: 10}
+      - {param_name: hot_standby_feedback, param_value: on}
+      - {param_name: log_replication_commands, param_value: on}
+      - {param_name: logging_collector, param_value: on}
+      - {param_name: log_directory, param_value: "'/app/db_logs'"}
+      - {param_name: port, param_value: "{{ DB_PORT }}" }
+      - {param_name: listen_addresses, param_value: "'localhost, {{DB_HOST}}, {{DB_REPL_HOST}}'" }
+ 
+  - name: Get pg_hba_dest
+    postgresql_query:
+      db: postgres
+      query: SHOW hba_file;
+    become: true
+    become_user: postgres
+    register: pg_hba_dest
+
+  - name: Apply pb_hba.conf from template
+    template:
+      src: pg_hba.conf
+      dest: '{{pg_hba_dest.query_result[0].hba_file}}'
+      owner: postgres
+      group: postgres
+
+  - name: Create database
+    community.postgresql.postgresql_db:
+      name: '{{DB_DATABASE}}'
+    become: true
+    become_user: postgres
+
+  - name: Init database
+    postgresql_query:
+      db: '{{DB_DATABASE}}'
+      query: "{{item}}"
+    become: true
+    become_user: postgres
+    with_items:
+      - CREATE TABLE IF NOT EXISTS emails (id SERIAL PRIMARY KEY, email VARCHAR(255));
+      - INSERT INTO emails (email) VALUES ('test1@example.net'), ('test2@example.com');
+      - CREATE TABLE IF NOT EXISTS phone_numbers (id SERIAL PRIMARY KEY, number VARCHAR(255));
+      - INSERT INTO phone_numbers (number) VALUES ('89175982868'), ('+79001234578');
+      - "create user {{DB_REPL_USER}} with replication encrypted password '{{DB_REPL_PASSWORD}}';"
+      - "create user {{DB_USER}} with password '{{DB_PASSWORD}}';"
+      - "GRANT SELECT, INSERT ON TABLE emails TO {{DB_USER}};"
+      - "GRANT SELECT, INSERT ON TABLE phone_numbers TO {{DB_USER}};"
+      - "GRANT USAGE ON SEQUENCE emails_id_seq TO {{DB_USER}};"
+      - "GRANT USAGE ON SEQUENCE phone_numbers_id_seq TO {{DB_USER}};"
+
+  - name: Create directory app
+    file:
+      path: /app
+      state: directory
+      mode: '0755'
+
+  - name: Create directory db_logs
+    file:
+      path: /app/db_logs
+      state: directory
+      mode: '0755'
+      owner: postgres
+      group: postgres
+
+  - name: Restart postgres
+    ansible.builtin.service:
+      name: postgresql
+      state: restarted
+
+
+- name: db_repl_deployment
+  vars_files:
+    - secrets.yml
+  hosts: db_repl
+  become: yes
+
+  tasks:
+
+  - name: Install soft
+    apt:
+      name:
+        - postgresql
+        - postgresql-contrib
+        - python3
+        - python3-psycopg2
+      state: latest
+      update_cache: yes
+
+  - name: Get postgresql.conf path
+    postgresql_query:
+      db: postgres
+      query: SHOW config_file;
+    become: true
+    become_user: postgres
+    register: config_file_path
+
+  - name: Set postgres configuration in postgresql.conf
+    lineinfile:
+      path: "{{ config_file_path.query_result[0].config_file }}"
+      regexp: '^[#\s]*{{ item.param_name }}\s*='
+      line: "{{ item.param_name }} = {{ item.param_value }}"
+      state: present
+    with_items:
+      - {param_name: listen_addresses, param_value: "'localhost, {{DB_HOST}}'" }
+
+  - name: Get data_directory
+    postgresql_query:
+      db: postgres
+      query: SHOW data_directory;
+    become: true
+    become_user: postgres
+    register: data_directory
+
+  - name: Stop postgres
+    ansible.builtin.service:
+      name: postgresql
+      state: stopped
+
+  - name: Clear data_directory
+    file:
+      path: '{{data_directory.query_result[0].data_directory}}'
+      state: absent
+
+  - name: Make first backup
+    command: 
+      cmd: 'bash -c "pg_basebackup -R -h {{DB_HOST}} -U {{DB_REPL_USER}} -D {{data_directory.query_result[0].data_directory}} -P --port {{DB_PORT}}"'
+      creates: "{{data_directory.query_result[0].data_directory}}/*"
+    become: true
+    become_user: postgres
+    environment:
+      PGPASSWORD: "{{DB_REPL_PASSWORD}}"
+
+  - name: Start postgres
+    ansible.builtin.service:
+      name: postgresql
+      state: started
+
+
+- name: bot
+  vars_files:
+    - secrets.yml
+  hosts: db
+  become: yes
+
+  tasks:
+
+  - name: Download bot
+    ansible.builtin.get_url:
+      url: "https://github.com/PrInersudio/PT_START_DEVOPS/raw/docker/bot/{{item}}"
+      dest: "/app/{{item}}"
+      mode: '0755'
+    with_items:
+      - help_message.txt
+      - practice_bot.py
+      - regexp_commands.json
+      - requirements.txt
+      - select_commands.json
+      - ssh_commands.json
+  
+  - name: Start bot
+    command: python /app/practice_bot.py &
+    environment:
+      TOKEN: "{{TOKEN}}"
+      RM_USER: "{{RM_USER}}"
+      RM_PASSWORD: "{{RM_PASSWORD}}"
+      RM_HOST: "{{RM_HOST}}"
+      RM_PORT: "{{RM_PORT}}"
+      DB_USER: "{{DB_USER}}"
+      DB_PASSWORD: "{{DB_PASSWORD}}"
+      DB_HOST: "{{DB_HOST}}"
+      DB_PORT: "{{DB_PORT}}"
+      DB_DATABASE: "{{DB_DATABASE}}"
